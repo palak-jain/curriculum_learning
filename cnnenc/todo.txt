@@ -1,0 +1,21 @@
+1. dictionary size code
+2. picking one with min validation error
+
+
+Experiments
+1. test without preprocessing (t3)
+2. check code for reload model,
+3. re_load least valid err model : check score
+4. patience param : 1-2-3 -> early stop and reload last model
+5. V/S  note valid err for each model, pick smallest valid err
+
+6. incremental 
+7. a,b,c,d 
+8. shuffle per epoch
+
+
+# terminals
+t3: no preprocess
+lcsr_early : no preprocess; a,b,c,d: no results
+
+t2: reload least valid, patience 5
