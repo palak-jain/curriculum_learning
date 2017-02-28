@@ -44,12 +44,15 @@ def main(job_id, args):
         save_file_name=save_file_name,
         re_load=args.re_load,
         re_load_old_setting=args.re_load_old_setting,
+        re_load_file_name=args.re_load_file_name,
+        log_file_name=args.log_file_name,
+        old_valid_file_name=args.old_valid_file_name,
 
         enc_dim=args.enc_dim,
         dec_dim=args.dec_dim,
 
         n_words_src=args.n_words_src,
-        n_words=args.n_words,
+        n_words=args.n_words_trgt,
         decay_c=args.decay_c,
         lrate=args.learning_rate,
         optimizer=args.optimizer,
@@ -113,12 +116,15 @@ if __name__ == '__main__':
     parser.add_argument('-dropout_gru', type=int, default=1, help="")
     parser.add_argument('-dropout_softmax', type=int, default=1, help="")
 
-    parser.add_argument('-maxlen', type=int, default=400, help="")
-    parser.add_argument('-maxlen_trg', type=int, default=400, help="")
+    parser.add_argument('-maxlen', type=int, default=500, help="")
+    parser.add_argument('-maxlen_trg', type=int, default=500, help="")
     parser.add_argument('-maxlen_sample', type=int, default=500, help="")
 
     parser.add_argument('-re_load', action="store_true", default=False)
     parser.add_argument('-re_load_old_setting', action="store_true", default=False)
+    parser.add_argument('-re_load_file_name', type=str, default='', help="model path to reload, if none specified model.grads.npz reloaded.")
+    parser.add_argument('-log_file_name', type=str, default='log.txt')
+    parser.add_argument('-old_valid_file_name', type=str, default='old_valid.txt')
     parser.add_argument('-quit_immediately', action="store_true", default=False, help="if true, will not proceed training, only print the size of the model.")
 
     parser.add_argument('-max_epochs', type=int, default=500, help="")
@@ -126,15 +132,15 @@ if __name__ == '__main__':
     parser.add_argument('-learning_rate', type=float, default=0.0001, help="")
 
     parser.add_argument('-n_words_src', type=int, default=0, help="298 for FI-EN")
-    parser.add_argument('-n_words', type=int, default=0, help="292 for FI-EN")
+    parser.add_argument('-n_words_trgt', type=int, default=0, help="292 for FI-EN")
 
     parser.add_argument('-optimizer', type=str, default="adam", help="")
     parser.add_argument('-decay_c', type=int, default=0, help="")
     parser.add_argument('-clip_c', type=int, default=1, help="")
 
-    parser.add_argument('-saveFreq', type=int, default=5, help="")
+    parser.add_argument('-saveFreq', type=int, default=1, help="")
     parser.add_argument('-sampleFreq', type=int, default=50000, help="")
-    parser.add_argument('-dispFreq', type=int, default=1, help="")
+    parser.add_argument('-dispFreq', type=int, default=5000, help="")
     parser.add_argument('-validFreq', type=int, default=1, help="")
     parser.add_argument('-pbatchFreq', type=int, default=100000, help="")
     parser.add_argument('-sort_size', type=int, default=20, help="")
@@ -144,16 +150,16 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.translate == "bn_hi" and args.n_words_src == 0:
-        args.n_words_src = 152
+    if args.n_words_src == 0:
+        args.n_words_src = 161
         
-    if args.translate == "bn_hi" and args.n_words == 0:
-        args.n_words = 165
+    if args.n_words_trgt == 0:
+        args.n_words_trgt = 174
 
     if args.translate not in "bn_hi cs_en fi_en ru_en".split():
         raise Exception('1')
 
-    args.model_name = "bi-char2char"
+    args.model_name = "ctoc"
 
     args.conv_width = [ int(x) for x in args.conv_width.split("-") ]
     args.conv_nkernels = [ int(x) for x in args.conv_nkernels.split("-") ]

@@ -59,7 +59,7 @@ def train(
       dim_word_src=200,
       enc_dim=1000,
       dec_dim=1000,  # the number of LSTM units
-      model_name="model_name",
+      model_file="model_name",
       conv_width=4,
       conv_nkernels=256,
       pool_window=-1,
@@ -97,6 +97,10 @@ def train(
       dictionaries=[
           '/data/lisatmp3/chokyun/europarl/europarl-v7.fr-en.en.tok.pkl',
           '/data/lisatmp3/chokyun/europarl/europarl-v7.fr-en.fr.tok.pkl'],
+      old_valid_file_name='old_valid_err.txt',
+      log_file_name='log.txt',
+      load_min_err=True,
+      re_load_file_name='',
       source_word_level=0,
       target_word_level=0,
       dropout_gru=False,
@@ -146,8 +150,9 @@ def train(
     opt_file_name = '%s%s%s.npz' % (model_path, save_file_name, '.grads')
     best_opt_file_name = '%s%s%s.best.npz' % (model_path, save_file_name, '.grads')
     model_name = '%s%s.pkl' % (model_path, save_file_name)
-    params = init_params(model_options)
-
+    log_file = log_file_name
+    params = init_params(model_options)    
+    
     cnt = 0
     cnt_emb = 0
     conv_params, hw_params = 0, 0
@@ -173,26 +178,51 @@ def train(
 
     cPickle.dump(model_options, open(model_name, 'wb'))
     history_errs = []
-
+    start_uidx = 0
+    
     # reload options
     # reload : False
-    if re_load and os.path.exists(file_name):
-        print 'You are reloading your experiment.. do not panic dude..'
-        if re_load_old_setting:
-            with open(model_name, 'rb') as f:
-                models_options = cPickle.load(f)
-        params = load_params(file_name, params)
-        # reload history
-        model = numpy.load(file_name)
-        history_errs = list(model['history_errs'])
-        if uidx is None:
-            uidx = model['uidx']
-        if eidx is None:
-            eidx = model['eidx']
-        if cidx is None:
-            try:
-                cidx = model['cidx']
-            except:
+    # Palak
+    if re_load:
+        if (not os.path.exists(re_load_file_name)) and os.path.exists(file_name):
+            model = numpy.load(file_name)
+            least_valid_err = numpy.argmin(model['history_errs'])
+            load_ep = int((least_valid_err*validFreq)/saveFreq)
+            re_load_file_name = model_path + '/' + save_file_name + '.' + str(load_ep) + '.npz'
+        
+            if not os.path.exists(re_load_file_name):
+                re_load_file_name = file_name    
+        
+        if os.path.exists(re_load_file_name):
+            print 'You are reloading your experiment', re_load_file_name, ' .. do not panic dude..'
+            with open(log_file, 'a') as f:
+                f.write("Model loaded: " + re_load_file_name + "\n")
+            if re_load_old_setting:
+                with open(model_name, 'rb') as f:
+                    models_options = cPickle.load(f)
+            params = load_params(re_load_file_name, params)
+            # reload history
+            model = numpy.load(re_load_file_name)
+            history_errs = list(model['history_errs'])
+            if uidx is None:
+                uidx = model['uidx']
+            if eidx is None:
+                eidx = model['eidx']
+            if cidx is None:
+                try:
+                    cidx = model['cidx']
+                except:
+                    cidx = 0
+            start_uidx = uidx
+            with open(log_file, 'a') as f:
+                f.write("Model loaded: " + re_load_file_name + "\n")
+                f.write("Epoch: " + str(eidx) + "\n")
+        else:
+            if uidx is None:
+                uidx = 0
+            if eidx is None:
+                eidx = 0
+            if cidx is None:
                 cidx = 0
     else:
         if uidx is None:
@@ -212,7 +242,8 @@ def train(
                          source_word_level=source_word_level,
                          target_word_level=target_word_level,
                          batch_size=batch_size,
-                         sort_size=sort_size)
+                         sort_size=sort_size,
+                         shuffle_per_epoch=False)
 
     valid = TextIterator(source=valid_datasets[0],
                          target=valid_datasets[1],
@@ -303,7 +334,7 @@ def train(
     # compile the optimizer, the actual computational graph is compiled here
     lr = tensor.scalar(name='lr')
     print 'Building optimizers...',
-    if re_load and os.path.exists(file_name):
+    if re_load and os.path.exists(re_load_file_name):
         if clip_c > 0:
             f_grad_shared, f_update, toptparams = eval(optimizer)(lr, tparams, grads, inps, cost=cost,
                                                                   not_finite=not_finite, clipped=clipped,
@@ -346,7 +377,7 @@ def train(
             if numpy.mod(cc, 1000)==0:
                 print "Jumping [%d / %d] examples" % (cc, cidx)
             train.next()
-
+    valid_err_ep = numpy.array([[0, numpy.inf]])
     for epoch in xrange(max_epochs):
         time0 = time.time()
         n_samples = 0
@@ -527,16 +558,17 @@ def train(
                                        )
                 valid_err = valid_errs.mean()
                 history_errs.append(valid_err)
+                valid_err_ep = numpy.concatenate((valid_err_ep, [[eidx, valid_err]]), axis=0)
 
-#                 if uidx == 0 or valid_err <= numpy.array(history_errs).min():
-#                     best_p = unzip(tparams)
-#                     best_optp = unzip(toptparams)
-#                     bad_counter = 0
+                if uidx == 0 or valid_err <= numpy.array(history_errs).min():
+                    best_p = unzip(tparams)
+                    best_optp = unzip(toptparams)
+                    bad_counter = 0
 
-#                 if saveFreq != validFreq and save_best_models:
-#                     numpy.savez(best_file_name, history_errs=history_errs, uidx=uidx, eidx=eidx,
-#                                 cidx=cdix, **best_p)
-#                     numpy.savez(best_opt_file_name, **best_optp)
+                if saveFreq != validFreq and save_best_models:
+                    numpy.savez(best_file_name, history_errs=history_errs, uidx=uidx, eidx=eidx,
+                                cidx=cdix, **best_p)
+                    numpy.savez(best_opt_file_name, **best_optp)
 
                 if len(history_errs) > patience and valid_err >= \
                         numpy.array(history_errs)[:-patience].min() and patience != -1:
@@ -565,17 +597,17 @@ def train(
                             cidx=cidx, **params)
                 numpy.savez(opt_file_name, **optparams)
 
-                if save_every_saveFreq and (uidx >= save_burn_in):
+                if save_every_saveFreq and ((uidx - start_uidx) >= save_burn_in):
                     this_file_name = '%s%s.%d.npz' % (model_path, save_file_name, eidx)
                     this_opt_file_name = '%s%s%s.%d.npz' % (model_path, save_file_name, '.grads', eidx)
                     numpy.savez(this_file_name, history_errs=history_errs, uidx=uidx, eidx=eidx,
                                 cidx=cidx, **params)
                     numpy.savez(this_opt_file_name, history_errs=history_errs, uidx=uidx, eidx=eidx,
-                                cidx=cidx, **params)
-#                     if best_p is not None and saveFreq != validFreq:
-#                         this_best_file_name = '%s%s.%d.best.npz' % (model_path, save_file_name, eidx)
-#                         numpy.savez(this_best_file_name, history_errs=history_errs, uidx=uidx, eidx=eidx,
-#                                     cidx=cidx, **best_p)
+                                cidx=cidx, **params)   # MODIFY IT(Palak)  params -> optparams 
+                    if best_p is not None and saveFreq != validFreq:
+                        this_best_file_name = '%s%s.%d.best.npz' % (model_path, save_file_name, eidx)
+                        numpy.savez(this_best_file_name, history_errs=history_errs, uidx=uidx, eidx=eidx,
+                                    cidx=cidx, **best_p)
                 print 'Done...',
                 print 'Saved to %s' % file_name
             
@@ -601,7 +633,14 @@ def train(
                           ).mean()
 
     print 'Valid ', valid_err
-
+    # save all validation erros
+    
+    with open(log_file, 'a') as f:
+        f.write("Valid err on epoch " + str(eidx) + ": " + str(valid_err) + "\n")
+        f.write("Valid err --------------------- \n")
+        numpy.savetxt(f, history_errs)
+        f.write("------------------------------- \n\n")
+    
     params = unzip(tparams)
     optparams = unzip(toptparams)
     file_name = '%s%s.%d.npz' % (model_path, save_file_name, eidx)
