@@ -12,10 +12,46 @@ Experiments
 6. incremental 
 7. a,b,c,d 
 8. shuffle per epoch
+transliteration 
+
+Changes
+
+1. Take final epoch not min valid err one
 
 
-# terminals
-t3: no preprocess
-lcsr_early : no preprocess; a,b,c,d: no results
+Issues to resolve
 
-t2: reload least valid, patience 5
+1. Preprocessing
+2. Patience parameter
+
+Experiments
+
+1. Baseline on properly preprocessed data
+2. Lcsr partitioned data
+3. lcsr incremental data
+4. Multiple languages baseline and lcsr partitioned
+
+Ideas
+
+1. Different data partitioning schemes
+2. Incorporating Transliteration data into training
+3. shuffling per epoch
+
+Evaluation
+
+1. Training Speed
+2. Lcsr scores correlation
+We measure lcsr bw <src,trgt> and <trgt, output> on test data and compute correlation between them : gaining insights into how training works.
+Also, measure this correlation for epochs at different stages of training. Correlation should decrease at later stages, since earlier stages are trained on high lcsr score data.
+
+Lit Survey
+
+Related work in curriculum learning in other domains
+Boosting and its contrast with CL
+Active Learning and its contrasting with CL
+
+Questions to pose before sir
+
+1. Boosting and CL work against each other
+2. Data partitioning schemes: focussing more on easier sentences vs harder
+3. Transliteration

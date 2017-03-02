@@ -57,8 +57,8 @@ if [ $sort ]; then  # no split
 		echo "---- SORT DATA by $sort and SPLIT IN $split ----" ;
         if [ $split ]
 		./preprocess/sort.sh --file="$data/$S$T/train/train_ref" --split=10000 --sort=$sort 
-		./preprocess/sort.sh --file="$data/$S$T/test/test_ref" --split=500 --sort=2 #$sort 
-		./preprocess/sort.sh --file="$data/$S$T/dev/dev_ref" --split=1000 --sort=2 #$sort 
+		#./preprocess/sort.sh --file="$data/$S$T/test/test_ref" --split=500 --sort=2 #$sort 
+		#./preprocess/sort.sh --file="$data/$S$T/dev/dev_ref" --split=1000 --sort=2 #$sort 
 fi 
     
 #  add for not sort option

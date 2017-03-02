@@ -37,6 +37,10 @@ case $i in
     sort="${i#*=}"
     shift # past argument=value
     ;;
+    --restart=*)
+    restart="${i#*=}"
+    shift # past argument=value
+    ;;
     --default=*)
     DEFAULT=YES
     shift # past argument with no value
@@ -97,7 +101,7 @@ cat $train_path/train_ref.abc.${T} $train_path/train_ref.ad.${T} > $train_path/t
 cat $train_path/train_ref.abcd.${T} $train_path/train_ref.ae.${T} > $train_path/train_ref.abcde.${T}
 
 # parameters
-lr="0.0005"
+lr="0.0001"
 batch_size=64
 max_epochs=300
 maxlen=500
@@ -119,14 +123,14 @@ log_file="${log_path}/${round}.log"
 ./preprocess/mypreprocess.sh ${train_file} ${S} ${T}  
 
 echo "==== ROUND $round : Training on $train_file ==== " 
-echo "==== ROUND $round : Training on $train_file ==== " > $log_file
-echo "PARAMETERS { lr: $lr | batch_size: $batch_size | patience: $patience | max_epochs: $max_epochs | maxlen: $maxlen |    maxlen_trg: $maxlen_trg } " >> $log_file
-echo >> $log_file
+#echo "==== ROUND $round : Training on $train_file ==== " > $log_file
+#echo "PARAMETERS { lr: $lr | batch_size: $batch_size | patience: $patience | max_epochs: $max_epochs | maxlen: $maxlen |    #maxlen_trg: $maxlen_trg } " >> $log_file
+#echo >> $log_file
 
-python char2char/train_bi_char2char.py -learning_rate $lr -batch_size $batch_size -patience $patience -max_epochs $max_epochs \
--model_path $model_path -data_path $data -maxlen $maxlen -maxlen_trg $maxlen_trg -log_file_name ${log_file} \
--n_words_src $n_words_src -n_words_trgt $n_words_trgt -re_load \
-|| { echo "Train $train_file failed "; exit 1; } 
+#python char2char/train_bi_char2char.py -learning_rate $lr -batch_size $batch_size -patience $patience -max_epochs $max_epochs \
+#-model_path $model_path -data_path $data -maxlen $maxlen -maxlen_trg $maxlen_trg -log_file_name ${log_file} \
+#-n_words_src $n_words_src -n_words_trgt $n_words_trgt -re_load \
+#|| { echo "Train $train_file failed "; exit 1; } 
 
 
 # Rest .......................
@@ -137,7 +141,7 @@ max_epochs=300
 for x in 'aab' 'abc' 'abcd' 'abcde';   
 do
     
-    round=${round+1}
+    round=$((round+1))
     train_file="$train_path/train_ref.$x"
     log_file="${log_path}/${round}.log"
 
@@ -150,7 +154,7 @@ do
 
     python char2char/train_bi_char2char.py -learning_rate $lr -patience $patience -max_epochs $max_epochs \
     -model_path $model_path -data_path $data -maxlen $maxlen -maxlen_trg $maxlen_trg -log_file_name ${log_file} \
-    -n_words_src $n_words_src -n_words $n_words_trgt \
+    -n_words_src $n_words_src -n_words_trgt $n_words_trgt -re_load \
     || { echo "Train $train_file failed "; exit 1; } 
 
 done

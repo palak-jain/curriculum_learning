@@ -1,9 +1,16 @@
 #!/bin/bash
 
+# usage : ./preprocess/mypreprocess.sh filepath src trgt
+
 # source language (example: fr)
 S=$2
 # target language (example: en)
 T=$3
+
+if [ $# -lt 3 ]; then
+    echo "usage : ./preprocess/mypreprocess.sh filepath src_lang trgt_lang"
+    exit 1;
+fi
 
 # path to data
 file=$1

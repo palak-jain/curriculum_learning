@@ -1,12 +1,10 @@
 #!/bin/sh
 
-# Indic preprocessing
-# Upto 120-130 epochs
-# Store result on validation set, use it to decide best model
 
-# TODO
-# Shuffle per epoch
-# ppl ordering
+# indic token preprocessing
+# Check on entire validation set, employ early stop
+# Store result on validation set, use it to decide best model
+# Data partition schemes: a, b, c, d
 
 
 # A POSIX variable
@@ -18,17 +16,6 @@ exp=`date|cut -f 2,3,4 -d ' '|tr ' ' '_'`
 S="bn"
 T="hi"
 model_path="models/split/"
-
-
-# Experiment params
-lr="0.0001"
-enc_dim=512
-dec_dim=512
-batch_size=64
-dropout_gru=1
-dropout_softmax=1
-max_epochs=100
-
 
 for i in "$@"
 do
@@ -49,10 +36,6 @@ case $i in
     sort="${i#*=}"
     shift # past argument=value
     ;;
-    --restart=*)
-    restart="${i#*=}"
-    shift # past argument=value
-    ;;
     --default=*)
     DEFAULT=YES
     shift # past argument with no value
@@ -70,7 +53,7 @@ if [ ! -d ${data} ]; then
     exit 1;
 fi
 
-if [[ $restart == 1 ]]; then
+if [ $restart -eq "1" ]; then
     echo "Deleting existing models"
     rm -rf exp/${exp}
 fi
@@ -80,8 +63,7 @@ model_path="exp/${exp}/model/"
 trns_path="exp/${exp}/translation/"
 res_path="exp/${exp}/results/"
 log_path="exp/${exp}/log"
-data="${data}/"
-    
+
 mkdir -p ${model_path} ${trns_path} ${res_path} ${log_path}
 
 inpS="/processed/all_${S}-${T}.${S}.tok"
@@ -92,21 +74,21 @@ dev_path="$data/$S$T/dev"
 test_path="$data/$S$T/test"
 
 
-# build dictionary
+# # build dictionary
 # ./prepdata.sh --data=${data} --sort=${sort} --refine=1
-
-train_file="${train_path}/train_ref"
-./preprocess/mypreprocess.sh ${train_path}/train_ref ${S} ${T}
-# ./preprocess/build_dictionary_char.py ${train_path}/${inpS} > dict_src_size 
-# ./preprocess/build_dictionary_char.py ${train_path}/${inpT} > dict_trgt_size
+# ./preprocess/mypreprocess.sh ${train_path}/train_ref ${S} ${T}
+# n_words_src=`./preprocess/build_dictionary_char.py ${train_path}/${inpS}`
+# n_words_trgt=`./preprocess/build_dictionary_char.py ${train_path}/${inpT}`
 
 # prepare dev and test
 ./preprocess/mypreprocess.sh $test_path/test_ref ${S} ${T}  
 ./preprocess/mypreprocess.sh $dev_path/dev_ref ${S} ${T}  
 
+
 # parameters
-lr="0.0001"
-max_epochs=130
+lr="0.0005"
+batch_size=64
+max_epochs=300
 maxlen=500
 maxlen_trg=500
 n_words_src=161
@@ -114,17 +96,53 @@ n_words_trgt=174
 
 round=1
 
-log_file=${log_path}/${round}.log
+# ROUND 1 ............ aa
+patience=1
+max_epochs=70
+
+x="aa"
+
+train_file="$train_path/train_ref.$x"
+log_file="${log_path}/${round}.log"
+
+./preprocess/mypreprocess.sh ${train_file} ${S} ${T}  
 
 echo "==== ROUND $round : Training on $train_file ==== " 
 echo "==== ROUND $round : Training on $train_file ==== " > $log_file
 echo "PARAMETERS { lr: $lr | batch_size: $batch_size | patience: $patience | max_epochs: $max_epochs | maxlen: $maxlen |    maxlen_trg: $maxlen_trg } " >> $log_file
 echo >> $log_file
 
-python char2char/train_bi_char2char.py -learning_rate $lr -batch_size $batch_size -max_epochs $max_epochs \
+python char2char/train_bi_char2char.py -learning_rate $lr -batch_size $batch_size -patience $patience -max_epochs $max_epochs \
 -model_path $model_path -data_path $data -maxlen $maxlen -maxlen_trg $maxlen_trg -log_file_name ${log_file} \
--n_words_src $n_words_src -n_words_trgt $n_words_trgt -re_load -saveFreq=5 -validFreq=5 \
+-n_words_src $n_words_src -n_words $n_words_trgt -re_load \
 || { echo "Train $train_file failed "; exit 1; } 
+
+
+# Rest .......................
+
+patience=2
+max_epochs=300
+
+for x in 'ab' 'ac' 'ad' 'ae';   
+do
+    
+    round=${round+1}
+    train_file="$train_path/train_ref.$x"
+    log_file="${log_path}/${round}.log"
+
+    ./preprocess/mypreprocess.sh ${train_file} ${S} ${T}  
+
+    echo "==== ROUND $round : Training on $train_file ==== " 
+    echo "==== ROUND $round : Training on $train_file ==== " > $log_file
+    echo "PARAMETERS { lr: $lr | patience: $patience | max_epochs: $max_epochs | maxlen: $maxlen | maxlen_trg: $maxlen_trg } " >> $log_file
+    echo >> $log_file
+
+    python char2char/train_bi_char2char.py -learning_rate $lr -patience $patience -max_epochs $max_epochs \
+    -model_path $model_path -data_path $data -maxlen $maxlen -maxlen_trg $maxlen_trg -log_file_name ${log_file} \
+    -n_words_src $n_words_src -n_words $n_words_trgt -re_load \
+    || { echo "Train $train_file failed "; exit 1; } 
+
+done
 
 
 # ------------- DECODE 1 -------------

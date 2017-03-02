@@ -1,14 +1,22 @@
-#usage ./refine.sh path/to/dir/filename_before_suffixlang eg. ../data/bnhi/test/test
+#usage ./refine.sh path/to/dir/ filename_before_suffixlang src trgt 
+# eg. ./refine.sh ../data/bnhi/test test bn hi
 
-f=$1
-S=bn
-T=hi
+dir=$1
+file=$2
+S=$3
+T=$4
 
-paste "$f".$S "$f".$T > "$f".$S$T 
+if [ $# -le 4 ]; then
+    echo "USAGE: ./refine.sh path/to/dir/ filename_before_suffixlang src trgt";
+    echo "EXAMPLE:  ./refine.sh ../data/bnhi/test test bn hi";
+    exit 1;
+fi
+
+paste "${dir}/${file}".$S "${dir}/${file}".$T > "${dir}/${file}".${S}${T}_ 
 #grep -v -e '[a-z]\|[A-Z]' "$f".$S$T > "$f"_noenglish.$S$T 
-awk 'BEGIN{FS="\t"}{ if(length($1)<=500 && length($2)<=500){print $1}}' "$f".$S$T > "$f"_ref.$S
-awk 'BEGIN{FS="\t"}{ if(length($1)<=500 && length($2)<=500){print $2}}' "$f".$S$T > "$f"_ref.$T
+awk 'BEGIN{FS="\t"}{ if(length($1)<=500 && length($2)<=500){print $1}}' ${dir}/${file}.${S}${T}_ > ${dir}/corpus.$S
+awk 'BEGIN{FS="\t"}{ if(length($1)<=500 && length($2)<=500){print $2}}' ${dir}/${file}.${S}${T}_ > ${dir}/corpus.$T
 
-echo "$f refine done!"
+echo "$dir/$file refine done!"
 
-rm "$f"*.$S$T
+rm "${dir}/${file}".${S}${T}_ 
